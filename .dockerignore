@@ -1,0 +1,35 @@
+# ── Node modules (serão instalados dentro do container) ───────────────────────
+node_modules/
+packages/*/node_modules/
+
+# ── Build outputs (rebuild dentro do container) ───────────────────────────────
+packages/*/dist/
+packages/web/.vite/
+
+# ── Variáveis de ambiente ──────────────────────────────────────────────────────
+.env
+.env.*
+packages/**/.env
+packages/**/.env.*
+
+# ── Banco de dados local ───────────────────────────────────────────────────────
+packages/server/data/
+*.db
+*.db-shm
+*.db-wal
+
+# ── Backups e logs ─────────────────────────────────────────────────────────────
+backups/
+logs/
+*.log
+
+# ── Ferramentas de desenvolvimento ────────────────────────────────────────────
+.claude/
+.git/
+.gitignore
+
+# ── Editor / OS ───────────────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db

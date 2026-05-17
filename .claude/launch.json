@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "pacs-server",
+      "runtimeExecutable": "../../node_modules/.bin/tsx",
+      "runtimeArgs": ["src/index.ts"],
+      "port": 3500
+    },
+    {
+      "name": "pacs-web",
+      "runtimeExecutable": "node_modules/.bin/vite",
+      "runtimeArgs": ["--port", "5173"],
+      "port": 5173
+    }
+  ]
+}

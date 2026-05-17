@@ -1,0 +1,147 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PACS Mini — Docker Compose Production Stack
+# Versão: 2.0  |  Compose V2 (sem campo "version" obsoleto)
+#
+# Uso:
+#   cp .env.example .env && nano .env
+#   docker compose up -d
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Redes isoladas ─────────────────────────────────────────────────────────────
+networks:
+  dicom-net:         # dcm4chee + pacs-server
+    driver: bridge
+  web-net:           # pacs-server + pacs-web (nginx)
+    driver: bridge
+
+# ── Volumes persistentes ───────────────────────────────────────────────────────
+volumes:
+  dcm4chee-ldap:
+  dcm4chee-db:
+  dcm4chee-wildfly:
+  dcm4chee-storage:
+  pacs-server-data:  # banco SQLite
+
+services:
+
+  # ── LDAP (configuração do dcm4chee) ─────────────────────────────────────────
+  ldap:
+    image: dcm4che/slapd-dcm4chee:2.6.8-34.1
+    networks: [dicom-net]
+    environment:
+      STORAGE_DIR: /storage/fs1
+    volumes:
+      - dcm4chee-ldap:/var/lib/openldap/openldap-data
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=dcm4che,dc=org"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── PostgreSQL (banco do dcm4chee) ───────────────────────────────────────────
+  db:
+    image: dcm4che/postgres-dcm4chee:17.4-34
+    networks: [dicom-net]
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-pacsdb}
+      POSTGRES_USER:     ${POSTGRES_USER:-pacs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+    volumes:
+      - dcm4chee-db:/var/lib/postgresql/data
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pacs} -d ${POSTGRES_DB:-pacsdb}"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  # ── dcm4chee Archive 5 ────────────────────────────────────────────────────────
+  arc:
+    image: dcm4che/dcm4chee-arc-psql:5.34.1
+    networks: [dicom-net]
+    ports:
+      - "${DICOM_PORT:-11112}:11112"   # DICOM C-STORE
+      - "${ARC_HTTP_PORT:-8080}:8080"  # REST API (acesso interno + frontend)
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB:-pacsdb}
+      POSTGRES_USER:     ${POSTGRES_USER:-pacs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+      WILDFLY_WAIT_FOR:  "ldap:389 db:5432"
+      ALLOW_CORS_ORIGIN: ${FRONTEND_URL:-http://localhost:5173}
+    depends_on:
+      ldap: { condition: service_healthy }
+      db:   { condition: service_healthy }
+    volumes:
+      - dcm4chee-wildfly:/opt/wildfly/standalone
+      - dcm4chee-storage:/storage
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/dcm4chee-arc/aets || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 120s
+      retries: 5
+
+  # ── PACS Mini Backend ─────────────────────────────────────────────────────────
+  pacs-server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    networks: [dicom-net, web-net]
+    ports:
+      - "${SERVER_PORT:-3500}:3500"
+    environment:
+      NODE_ENV:               production
+      PORT:                   3500
+      API_SECRET:             ${API_SECRET:?Defina API_SECRET no .env (mínimo 32 caracteres)}
+      FRONTEND_URL:           ${FRONTEND_URL:-http://localhost}
+      DCM4CHEE_BASE_URL:      http://arc:8080
+      DCM4CHEE_AET:           ${DCM4CHEE_AET:-DCM4CHEE}
+      SMTP_HOST:              ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT:              ${SMTP_PORT:-587}
+      SMTP_SECURE:            ${SMTP_SECURE:-false}
+      SMTP_USER:              ${SMTP_USER:-}
+      SMTP_PASS:              ${SMTP_PASS:-}
+      EMAIL_FROM:             ${EMAIL_FROM:-pacs@localhost}
+      EMAIL_ALERT_TO:         ${EMAIL_ALERT_TO:-admin@localhost}
+      STORAGE_PATH:           /storage
+      DISK_WARN_PERCENT:      ${DISK_WARN_PERCENT:-80}
+      DISK_CRITICAL_PERCENT:  ${DISK_CRITICAL_PERCENT:-90}
+      SHARE_BASE_URL:         ${SHARE_BASE_URL:-${FRONTEND_URL:-http://localhost}}
+      DB_PATH:                /data/pacs-mini.db
+    volumes:
+      - dcm4chee-storage:/storage:ro
+      - pacs-server-data:/data
+    depends_on:
+      arc: { condition: service_healthy }
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3500/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  # ── PACS Mini Frontend (Nginx) ────────────────────────────────────────────────
+  pacs-web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+      args:
+        VITE_DCM4CHEE_HOST:  ${DCM4CHEE_PUBLIC_HOST:-localhost}
+        VITE_DCM4CHEE_PORT:  ${ARC_HTTP_PORT:-8080}
+        VITE_DCM4CHEE_AET:   ${DCM4CHEE_AET:-DCM4CHEE}
+        VITE_SERVER_URL:     ${SERVER_PUBLIC_URL:-http://localhost:3500}
+        VITE_API_SECRET:     ${API_SECRET}
+        VITE_APP_NAME:       ${APP_NAME:-PACS Mini}
+    networks: [web-net]
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      pacs-server: { condition: service_healthy }
+    restart: unless-stopped

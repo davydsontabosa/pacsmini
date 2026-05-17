@@ -1,0 +1,42 @@
+# ── Dependências ──────────────────────────────────────────────────────────────
+node_modules/
+.npm/
+
+# ── Build outputs ─────────────────────────────────────────────────────────────
+dist/
+build/
+.vite/
+
+# ── Variáveis de ambiente (NUNCA commitar!) ────────────────────────────────────
+.env
+.env.local
+.env.*.local
+packages/**/.env
+packages/**/.env.local
+
+# ── Banco de dados SQLite ─────────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+packages/server/data/
+
+# ── Backups ───────────────────────────────────────────────────────────────────
+backups/
+
+# ── Dados dcm4chee (Docker volumes mapeados) ──────────────────────────────────
+data/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS / Editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── TypeScript ────────────────────────────────────────────────────────────────
+*.tsbuildinfo

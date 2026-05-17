@@ -1,0 +1,96 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# PACS Mini — Compose MVP (integração com dcm4chee existente)
+#
+# Use este arquivo quando o dcm4chee já está rodando no servidor.
+# Sobe apenas pacs-server (API) e pacs-web (nginx + React).
+#
+# Uso rápido:
+#   cp .env.mini .env
+#   nano .env                          # ajuste obrigatório: API_SECRET, DCM4CHEE_BASE_URL
+#   docker compose -f docker-compose.mini.yml up -d --build
+# ─────────────────────────────────────────────────────────────────────────────
+
+networks:
+  pacs-net:
+    driver: bridge
+
+volumes:
+  pacs-server-data:   # banco SQLite persistente
+
+services:
+
+  # ── PACS Mini Backend ─────────────────────────────────────────────────────────
+  pacs-server:
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    container_name: pacs-server
+    networks: [pacs-net]
+    ports:
+      - "${SERVER_PORT:-3500}:3500"
+    environment:
+      NODE_ENV:              production
+      PORT:                  3500
+      API_SECRET:            ${API_SECRET:?Defina API_SECRET no .env (mínimo 32 caracteres)}
+      FRONTEND_URL:          ${FRONTEND_URL:-http://localhost}
+
+      # URL interna do dcm4chee (acessível a partir do container)
+      # Ex: http://172.17.0.1:8080  ou  http://host.docker.internal:8080
+      DCM4CHEE_BASE_URL:     ${DCM4CHEE_BASE_URL:?Defina DCM4CHEE_BASE_URL no .env}
+      DCM4CHEE_AET:          ${DCM4CHEE_AET:-DCM4CHEE}
+
+      SMTP_HOST:             ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT:             ${SMTP_PORT:-587}
+      SMTP_SECURE:           ${SMTP_SECURE:-false}
+      SMTP_USER:             ${SMTP_USER:-}
+      SMTP_PASS:             ${SMTP_PASS:-}
+      EMAIL_FROM:            ${EMAIL_FROM:-pacs@localhost}
+      EMAIL_ALERT_TO:        ${EMAIL_ALERT_TO:-admin@localhost}
+
+      # Monitoramento de disco (opcional; aponta para storage do dcm4chee)
+      STORAGE_PATH:          ${STORAGE_PATH:-/storage}
+      DISK_WARN_PERCENT:     ${DISK_WARN_PERCENT:-80}
+      DISK_CRITICAL_PERCENT: ${DISK_CRITICAL_PERCENT:-90}
+      DISK_CHECK_CRON:       ${DISK_CHECK_CRON:-0 * * * *}
+      DISK_COOLDOWN_HOURS:   ${DISK_COOLDOWN_HOURS:-4}
+
+      SHARE_BASE_URL:        ${SHARE_BASE_URL:-${FRONTEND_URL:-http://localhost}}
+      DB_PATH:               /data/pacs-mini.db
+    volumes:
+      - pacs-server-data:/data
+      # Monte o storage do dcm4chee para que o monitoramento de disco funcione.
+      # Comente esta linha se não quiser usar monitoramento.
+      - ${DCM4CHEE_STORAGE_PATH:-/var/lib/dcm4chee/storage}:/storage:ro
+    restart: unless-stopped
+    extra_hosts:
+      # Permite acessar serviços do host (incluindo dcm4chee) via host.docker.internal
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3500/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  # ── PACS Mini Frontend (Nginx SPA + proxy reverso) ────────────────────────────
+  pacs-web:
+    build:
+      context: .
+      dockerfile: packages/web/Dockerfile
+      args:
+        # Conexão direta do browser ao dcm4chee (thumbnails WADO-RS).
+        # Use o IP/hostname público do servidor + porta do dcm4chee.
+        VITE_DCM4CHEE_HOST: ${DCM4CHEE_PUBLIC_HOST:-localhost}
+        VITE_DCM4CHEE_PORT: ${DCM4CHEE_PUBLIC_PORT:-8080}
+        VITE_DCM4CHEE_AET:  ${DCM4CHEE_AET:-DCM4CHEE}
+        # URL vazia = mesmo origin → nginx proxy para pacs-server
+        VITE_SERVER_URL:    ""
+        VITE_API_SECRET:    ${API_SECRET}
+        VITE_APP_NAME:      ${APP_NAME:-PACS Mini}
+    container_name: pacs-web
+    networks: [pacs-net]
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      pacs-server: { condition: service_healthy }
+    restart: unless-stopped

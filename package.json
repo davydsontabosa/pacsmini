@@ -1,0 +1,22 @@
+{
+  "name": "pacs-mini",
+  "version": "2.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "cd packages/server && npm run dev",
+    "dev:web":    "cd packages/web && npm run dev",
+    "build":      "npm run build --workspace=packages/server && npm run build --workspace=packages/web",
+    "typecheck":  "npm run typecheck --workspace=packages/server --if-present & npm run typecheck --workspace=packages/web --if-present",
+    "lint":       "echo 'Lint: configure eslint por workspace'",
+    "docker:build": "docker compose build",
+    "docker:up":    "docker compose up -d",
+    "docker:down":  "docker compose down",
+    "docker:logs":  "docker compose logs -f",
+    "docker:ps":    "docker compose ps",
+    "backup":       "bash scripts/backup.sh",
+    "setup":        "bash scripts/setup.sh"
+  }
+}
