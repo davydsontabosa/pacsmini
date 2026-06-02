@@ -81,6 +81,7 @@ export interface CreateSharePayload {
   patientId?:      string
   modalities?:     string[]
   createdBy:       string
+  doctorId?:       number
   recipientEmail?: string
   expiresInHours?: number
   maxAccesses?:    number
@@ -89,7 +90,13 @@ export interface CreateSharePayload {
   sendEmail?:      boolean
 }
 
-export async function createShare(payload: CreateSharePayload): Promise<ShareToken & { shareUrl: string }> {
+export interface ShareCreatedResult extends ShareToken {
+  shareUrl:    string
+  qrDataUrl:   string
+  doctorName?: string
+}
+
+export async function createShare(payload: CreateSharePayload): Promise<ShareCreatedResult> {
   return (await serverClient.post('/api/shares', payload)).data
 }
 
