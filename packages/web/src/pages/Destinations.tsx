@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Plus, Server, Wifi, WifiOff, Pencil, Trash2, Loader2, Check, X } from 'lucide-react'
-import { useDestinations, useDeleteDestination, useTestEcho } from '../hooks/useDestinations'
-import { DicomDestination } from '../services/destinations'
+import { Plus, Server, Wifi, WifiOff, Pencil, Trash2, Loader2, Check, X, Download } from 'lucide-react'
+import { useDestinations, useDeleteDestination, useTestEcho, useImportFromDcm4chee } from '../hooks/useDestinations'
+import { DicomDestination, ImportResult } from '../services/destinations'
 import { DestinationFormModal } from '../components/shared/DestinationFormModal'
 import { cn } from '../lib/utils'
 
@@ -128,13 +128,87 @@ function DestCard({ dest, onEdit, onDelete }: {
   )
 }
 
+function ImportResultModal({ result, onClose }: { result: ImportResult; onClose: () => void }) {
+  const total = result.imported.length + result.skipped.length
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
+      <div className="bg-s1 border border-bd rounded-xl p-6 w-full max-w-md shadow-2xl space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-tx">Importação concluída</h2>
+          <button onClick={onClose} className="text-mt hover:text-tx transition-colors"><X size={16} /></button>
+        </div>
+
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="bg-ok/10 rounded-lg p-3">
+            <p className="text-xl font-bold text-ok">{result.imported.length}</p>
+            <p className="text-xs text-mt mt-0.5">Importados</p>
+          </div>
+          <div className="bg-mt/10 rounded-lg p-3">
+            <p className="text-xl font-bold text-mt">{result.skipped.length}</p>
+            <p className="text-xs text-mt mt-0.5">Já existiam</p>
+          </div>
+          <div className="bg-er/10 rounded-lg p-3">
+            <p className="text-xl font-bold text-er">{result.errors.length}</p>
+            <p className="text-xs text-mt mt-0.5">Com erro</p>
+          </div>
+        </div>
+
+        {total === 0 && result.errors.length === 0 && (
+          <p className="text-sm text-mt text-center py-2">Nenhum device externo encontrado no dcm4chee.</p>
+        )}
+
+        {result.imported.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-mt mb-1.5">Importados:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {result.imported.map(ae => (
+                <span key={ae} className="text-xs font-mono bg-ok/10 text-ok px-2 py-0.5 rounded">{ae}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result.skipped.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-mt mb-1.5">Já cadastrados (ignorados):</p>
+            <div className="flex flex-wrap gap-1.5">
+              {result.skipped.map(ae => (
+                <span key={ae} className="text-xs font-mono bg-mt/10 text-mt px-2 py-0.5 rounded">{ae}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {result.errors.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-mt mb-1.5">Devices com falha:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {result.errors.map(d => (
+                <span key={d} className="text-xs font-mono bg-er/10 text-er px-2 py-0.5 rounded">{d}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button onClick={onClose}
+          className="w-full px-4 py-2 bg-ac hover:bg-ac2 text-bg font-semibold rounded-lg text-sm transition-colors">
+          Fechar
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Destinations() {
   const { data: destinations = [], isLoading } = useDestinations()
   const deleteMut = useDeleteDestination()
+  const importMut = useImportFromDcm4chee()
 
-  const [formOpen,    setFormOpen]    = useState(false)
-  const [editTarget,  setEditTarget]  = useState<DicomDestination | undefined>()
-  const [confirmDel,  setConfirmDel]  = useState<DicomDestination | null>(null)
+  const [formOpen,      setFormOpen]      = useState(false)
+  const [editTarget,    setEditTarget]    = useState<DicomDestination | undefined>()
+  const [confirmDel,    setConfirmDel]    = useState<DicomDestination | null>(null)
+  const [importResult,  setImportResult]  = useState<ImportResult | null>(null)
 
   function handleEdit(d: DicomDestination) {
     setEditTarget(d)
@@ -152,6 +226,11 @@ export default function Destinations() {
     setConfirmDel(null)
   }
 
+  async function handleImport() {
+    const result = await importMut.mutateAsync()
+    setImportResult(result)
+  }
+
   return (
     <div className="space-y-5">
       {/* Page header */}
@@ -160,10 +239,19 @@ export default function Destinations() {
           <h1 className="text-xl font-bold text-tx">Destinos DICOM</h1>
           <p className="text-mt text-sm mt-0.5">Servidores externos para envio de exames</p>
         </div>
-        <button onClick={handleNew}
-          className="flex items-center gap-2 px-4 py-2 bg-ac hover:bg-ac2 text-bg font-semibold rounded-lg text-sm transition-colors">
-          <Plus size={14} /> Novo Destino
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => void handleImport()} disabled={importMut.isPending}
+            className="flex items-center gap-2 px-4 py-2 border border-bd hover:border-ac text-mt hover:text-tx rounded-lg text-sm transition-colors disabled:opacity-50">
+            {importMut.isPending
+              ? <><Loader2 size={14} className="animate-spin" /> Importando…</>
+              : <><Download size={14} /> Importar do dcm4chee</>
+            }
+          </button>
+          <button onClick={handleNew}
+            className="flex items-center gap-2 px-4 py-2 bg-ac hover:bg-ac2 text-bg font-semibold rounded-lg text-sm transition-colors">
+            <Plus size={14} /> Novo Destino
+          </button>
+        </div>
       </div>
 
       {/* Loading */}
@@ -193,6 +281,11 @@ export default function Destinations() {
             <DestCard key={d.id} dest={d} onEdit={handleEdit} onDelete={setConfirmDel} />
           ))}
         </div>
+      )}
+
+      {/* Import result modal */}
+      {importResult && (
+        <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
       )}
 
       {/* Form modal */}

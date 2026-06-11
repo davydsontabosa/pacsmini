@@ -52,3 +52,14 @@ export async function testEcho(id: number): Promise<EchoResult> {
   const res = await serverClient.post<EchoResult>(`/api/destinations/${id}/echo`)
   return res.data
 }
+
+export interface ImportResult {
+  imported: string[]
+  skipped:  string[]
+  errors:   string[]
+}
+
+export async function importFromDcm4chee(): Promise<ImportResult> {
+  const res = await serverClient.post<ImportResult>('/api/destinations/import')
+  return res.data
+}

@@ -116,6 +116,97 @@ destinationsRouter.delete('/:id', auth, (req, res) => {
   return res.json({ deleted: true })
 })
 
+// POST /api/destinations/import  — importa devices/AEs do dcm4chee
+destinationsRouter.post('/import', auth, async (_req, res) => {
+  const dcm4cheeBase = env.DCM4CHEE_BASE_URL
+  const db = getDb()
+
+  // 1. Lista todos os devices registrados no dcm4chee
+  let deviceNames: string[]
+  try {
+    const r = await fetch(`${dcm4cheeBase}/dcm4chee-arc/devices`, {
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!r.ok) {
+      return res.status(502).json({ error: `dcm4chee respondeu ${r.status} ao listar devices` })
+    }
+    deviceNames = (await r.json()) as string[]
+  } catch (err) {
+    return res.status(502).json({ error: 'Não foi possível conectar ao dcm4chee' })
+  }
+
+  const imported: string[] = []
+  const skipped:  string[] = []
+  const errors:   string[] = []
+  const now = new Date().toISOString()
+
+  // 2. Para cada device, busca detalhes e extrai AE Title + host + porta
+  for (const deviceName of deviceNames) {
+    try {
+      const dr = await fetch(`${dcm4cheeBase}/dcm4chee-arc/devices/${encodeURIComponent(deviceName)}`, {
+        signal: AbortSignal.timeout(8000),
+      })
+      if (!dr.ok) continue
+
+      const device = await dr.json() as {
+        dicomDeviceName?: string
+        dicomDescription?: string
+        dicomInstalled?: boolean
+        dicomNetworkAE?: Array<{
+          dicomAETitle?: string
+          dicomAssociationAcceptor?: boolean
+          dicomNetworkConnectionReference?: string[]
+        }>
+        dicomNetworkConnection?: Array<{
+          cn?: string
+          dicomHostname?: string
+          dicomPort?: number
+        }>
+      }
+
+      const aes = device.dicomNetworkAE ?? []
+      const connections = device.dicomNetworkConnection ?? []
+
+      for (const ae of aes) {
+        const aeTitle = ae.dicomAETitle?.toUpperCase()
+        if (!aeTitle) continue
+
+        // Resolve a conexão de rede associada a este AE
+        const connRef = ae.dicomNetworkConnectionReference?.[0] ?? ''
+        const connIdx = connRef.match(/\/dicomNetworkConnection\/(\d+)/)?.[1]
+        const conn = connIdx !== undefined
+          ? connections[Number(connIdx)]
+          : connections[0]
+
+        const host = conn?.dicomHostname
+        const port = conn?.dicomPort ?? 104
+
+        if (!host || host === 'localhost' || host === '127.0.0.1') continue
+
+        // Verifica se já existe no banco
+        const existing = db.prepare('SELECT id FROM dicom_destinations WHERE ae_title = ?').get(aeTitle)
+        if (existing) {
+          skipped.push(aeTitle)
+          continue
+        }
+
+        const name = device.dicomDescription ?? device.dicomDeviceName ?? aeTitle
+
+        db.prepare(`
+          INSERT INTO dicom_destinations (name, ae_title, host, port, description, is_active, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+        `).run(name, aeTitle, host, port, `Importado de ${deviceName}`, now, now)
+
+        imported.push(aeTitle)
+      }
+    } catch {
+      errors.push(deviceName)
+    }
+  }
+
+  return res.json({ imported, skipped, errors })
+})
+
 // POST /api/destinations/:id/echo  (rate limit: 10 req/min em produção)
 destinationsRouter.post('/:id/echo', auth, strictRateLimit, async (req, res) => {
   const id  = Number(req.params.id)

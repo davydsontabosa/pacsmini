@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   getDestinations, createDestination, updateDestination,
-  deleteDestination, testEcho, CreateDestinationInput,
+  deleteDestination, testEcho, importFromDcm4chee, CreateDestinationInput,
 } from '../services/destinations'
 
 export function useDestinations() {
@@ -40,6 +40,14 @@ export function useTestEcho() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: testEcho,
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['destinations'] }),
+  })
+}
+
+export function useImportFromDcm4chee() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: importFromDcm4chee,
     onSuccess:  () => qc.invalidateQueries({ queryKey: ['destinations'] }),
   })
 }
