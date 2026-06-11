@@ -27,7 +27,7 @@ services:
 
   # ── LDAP (configuração do dcm4chee) ─────────────────────────────────────────
   ldap:
-    image: dcm4che/slapd-dcm4chee:2.6.10-34.3
+    image: dcm4che/slapd-dcm4chee:2.6.8-34.1
     networks: [dicom-net]
     environment:
       STORAGE_DIR: /storage/fs1
@@ -61,22 +61,17 @@ services:
 
   # ── dcm4chee Archive 5 ────────────────────────────────────────────────────────
   arc:
-    image: dcm4che/dcm4chee-arc-psql:5.34.3
+    image: dcm4che/dcm4chee-arc-psql:5.34.1
     networks: [dicom-net]
     ports:
       - "${DICOM_PORT:-11112}:11112"   # DICOM C-STORE
       - "${ARC_HTTP_PORT:-8080}:8080"  # REST API (acesso interno + frontend)
     environment:
-      POSTGRES_DB:              ${POSTGRES_DB:-pacsdb}
-      POSTGRES_USER:            ${POSTGRES_USER:-pacs}
-      POSTGRES_PASSWORD:        ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
-      WILDFLY_WAIT_FOR:         "ldap:389 db:5432"
-      ALLOW_CORS_ORIGIN:        ${FRONTEND_URL:-http://localhost:5173}
-      # 5.34.2+: atraso opcional no boot (ms) — útil quando DB sobe lento
-      ARCHIVE_START_DELAY_MS:   ${ARCHIVE_START_DELAY_MS:-0}
-      # 5.34.3+: headers CORS configuráveis (padrão do archive já funciona na maioria dos casos)
-      CORS_ALLOW_HEADERS:       ${CORS_ALLOW_HEADERS:-}
-      CORS_EXPOSE_HEADERS:      ${CORS_EXPOSE_HEADERS:-}
+      POSTGRES_DB:       ${POSTGRES_DB:-pacsdb}
+      POSTGRES_USER:     ${POSTGRES_USER:-pacs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env}
+      WILDFLY_WAIT_FOR:  "ldap:389 db:5432"
+      ALLOW_CORS_ORIGIN: ${FRONTEND_URL:-http://localhost:5173}
     depends_on:
       ldap: { condition: service_healthy }
       db:   { condition: service_healthy }

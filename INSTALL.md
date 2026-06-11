@@ -1,6 +1,6 @@
 # PACS Mini — Guia de Instalação Completo
 
-> **Versão:** 2.0.0 | **dcm4chee:** 5.34.3 | **Revisão:** 2026-06
+> **Versão:** 2.0.0 | **Revisão:** 2026
 
 ---
 
@@ -27,8 +27,8 @@ O **PACS Mini** é uma plataforma de gerenciamento de imagens DICOM composta por
 | Componente       | Tecnologia              | Porta  | Descrição                          |
 |------------------|-------------------------|--------|------------------------------------|
 | `ldap`           | OpenLDAP dcm4che        | 389    | Configuração do dcm4chee           |
-| `db`             | PostgreSQL 17.4         | 5432   | Banco do dcm4chee                  |
-| `arc`            | dcm4chee Archive 5.34.3 | 8080   | DICOM Server / REST API            |
+| `db`             | PostgreSQL 17           | 5432   | Banco do dcm4chee                  |
+| `arc`            | dcm4chee Archive 5      | 8080   | DICOM Server / REST API            |
 | `pacs-server`    | Node.js 22 / Express    | 3500   | API do PACS Mini                   |
 | `pacs-web`       | React + Nginx           | 80     | Interface Web                      |
 
@@ -565,4 +565,4 @@ pacs-mini/
 
 ---
 
-*PACS Mini v2.0.0 — NordikIA | dcm4chee-arc-light 5.34.3*
+*PACS Mini v2.0.0 — NordikIA*
