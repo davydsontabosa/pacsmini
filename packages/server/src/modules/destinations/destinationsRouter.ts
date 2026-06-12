@@ -71,7 +71,7 @@ destinationsRouter.post('/', auth, (req, res) => {
     .get(result.lastInsertRowid) as unknown as DicomDestinationRow
   const mapped = mapRow(row)
   // Registra o AE no dcm4chee em background (não bloqueia a resposta)
-  ensureDestinationRegistered(mapped, env.DCM4CHEE_BASE_URL).catch(() => {})
+  ensureDestinationRegistered(mapped, env.DCM4CHEE_BASE_URL, { user: env.DCM4CHEE_USER, pass: env.DCM4CHEE_PASS }).catch(() => {})
   res.status(201).json(mapped)
 })
 
@@ -108,7 +108,7 @@ destinationsRouter.put('/:id', auth, (req, res) => {
     .get(id) as unknown as DicomDestinationRow
   const mapped = mapRow(row)
   // Re-registra no dcm4chee caso host/porta/AET tenham mudado
-  ensureDestinationRegistered(mapped, env.DCM4CHEE_BASE_URL).catch(() => {})
+  ensureDestinationRegistered(mapped, env.DCM4CHEE_BASE_URL, { user: env.DCM4CHEE_USER, pass: env.DCM4CHEE_PASS }).catch(() => {})
   return res.json(mapped)
 })
 
@@ -227,7 +227,7 @@ destinationsRouter.post('/:id/echo', auth, strictRateLimit, async (req, res) => 
   const now          = new Date().toISOString()
 
   try {
-    await ensureDestinationRegistered(dest, dcm4cheeBase)
+    await ensureDestinationRegistered(dest, dcm4cheeBase, { user: env.DCM4CHEE_USER, pass: env.DCM4CHEE_PASS })
 
     const start = Date.now()
     const echoRes = await fetch(

@@ -8,6 +8,8 @@ const EnvSchema = z.object({
 
   DCM4CHEE_BASE_URL: z.string().default('http://localhost:8080'),
   DCM4CHEE_AET:      z.string().default('DCM4CHEE'),
+  DCM4CHEE_USER:     z.string().default('admin'),
+  DCM4CHEE_PASS:     z.string().default('admin'),
 
   SMTP_HOST:        z.string().default('smtp.gmail.com'),
   SMTP_PORT:        z.string().default('587'),
