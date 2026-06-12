@@ -32,7 +32,7 @@ export async function ensureDestinationRegistered(
       }],
       dicomNetworkAE: [{
         dicomAETitle:                      dest.aeTitle,
-        dicomNetworkConnectionReference:   ['/dicomNetworkConnection/dicom'],
+        dicomNetworkConnectionReference:   ['/dicomNetworkConnection/0'],
         dicomAssociationAcceptor:          true,
         dicomAssociationInitiator:         false,
       }],

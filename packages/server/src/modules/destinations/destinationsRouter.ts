@@ -125,12 +125,16 @@ destinationsRouter.delete('/:id', auth, (req, res) => {
 // POST /api/destinations/import  — importa devices/AEs do dcm4chee
 destinationsRouter.post('/import', auth, async (_req, res) => {
   const dcm4cheeBase = env.DCM4CHEE_BASE_URL
+  const authHeader   = {
+    Authorization: `Basic ${Buffer.from(`${env.DCM4CHEE_USER}:${env.DCM4CHEE_PASS}`).toString('base64')}`,
+  }
   const db = getDb()
 
   // 1. Lista todos os devices registrados no dcm4chee
   let deviceNames: string[]
   try {
     const r = await fetch(`${dcm4cheeBase}/dcm4chee-arc/devices`, {
+      headers: authHeader,
       signal: AbortSignal.timeout(10000),
     })
     if (!r.ok) {
@@ -150,6 +154,7 @@ destinationsRouter.post('/import', auth, async (_req, res) => {
   for (const deviceName of deviceNames) {
     try {
       const dr = await fetch(`${dcm4cheeBase}/dcm4chee-arc/devices/${encodeURIComponent(deviceName)}`, {
+        headers: authHeader,
         signal: AbortSignal.timeout(8000),
       })
       if (!dr.ok) continue
