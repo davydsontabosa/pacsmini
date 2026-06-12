@@ -69,7 +69,10 @@ destinationsRouter.post('/', auth, (req, res) => {
          data.description ?? null, data.isActive !== false ? 1 : 0, now, now)
   const row = db.prepare('SELECT * FROM dicom_destinations WHERE id = ?')
     .get(result.lastInsertRowid) as unknown as DicomDestinationRow
-  res.status(201).json(mapRow(row))
+  const mapped = mapRow(row)
+  // Registra o AE no dcm4chee em background (não bloqueia a resposta)
+  ensureDestinationRegistered(mapped, env.DCM4CHEE_BASE_URL).catch(() => {})
+  res.status(201).json(mapped)
 })
 
 // PUT /api/destinations/:id
@@ -103,7 +106,10 @@ destinationsRouter.put('/:id', auth, (req, res) => {
   )
   const row = db.prepare('SELECT * FROM dicom_destinations WHERE id = ?')
     .get(id) as unknown as DicomDestinationRow
-  return res.json(mapRow(row))
+  const mapped = mapRow(row)
+  // Re-registra no dcm4chee caso host/porta/AET tenham mudado
+  ensureDestinationRegistered(mapped, env.DCM4CHEE_BASE_URL).catch(() => {})
+  return res.json(mapped)
 })
 
 // DELETE /api/destinations/:id
