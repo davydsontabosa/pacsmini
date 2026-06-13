@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { useServerStore } from '../store/serverStore'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -8,6 +9,19 @@ export function cn(...inputs: ClassValue[]) {
 export function formatDicomName(name: string | null | undefined): string {
   if (!name) return '—'
   return name.replace(/\^/g, ' ').trim() || '—'
+}
+
+export async function downloadWithAuth(path: string, filename: string) {
+  const { serverUrl, apiSecret } = useServerStore.getState()
+  const url = `${serverUrl}${path}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${apiSecret}` } })
+  if (!res.ok) throw new Error(`Erro ${res.status} ao baixar arquivo`)
+  const blob = await res.blob()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(a.href)
 }
 
 export function formatDicomDate(d: string | null | undefined): string {

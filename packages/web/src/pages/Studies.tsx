@@ -6,7 +6,7 @@ import { useConnectionStore, buildBaseUrl } from '../store/connectionStore'
 import { ShareModal } from '../components/shared/ShareModal'
 import { SendDicomModal } from '../components/shared/SendDicomModal'
 import { SendBatchModal } from '../components/shared/SendBatchModal'
-import { formatDicomDate } from '../lib/utils'
+import { formatDicomDate, downloadWithAuth } from '../lib/utils'
 import { useServerStore } from '../store/serverStore'
 import { cn } from '../lib/utils'
 
@@ -232,11 +232,10 @@ export default function Studies() {
                                 className="flex items-center gap-3 w-full px-4 py-3.5 text-sm text-tx hover:bg-s2 transition-colors">
                                 <Send size={16} className="text-ac shrink-0" /> Enviar via DICOM
                               </button>
-                              <a href={`/api/proxy/download/study/${s.studyInstanceUID}`}
-                                target="_blank" rel="noreferrer"
+                              <button onClick={() => { void downloadWithAuth(`/api/proxy/download/study/${s.studyInstanceUID}`, `estudo_${s.studyInstanceUID.slice(-8)}.zip`); setDropdownOpen(null) }}
                                 className="flex items-center gap-3 w-full px-4 py-3.5 text-sm text-tx hover:bg-s2 transition-colors">
                                 <Download size={16} className="text-ac shrink-0" /> Download ZIP
-                              </a>
+                              </button>
                               <div className="border-t border-bd/60">
                               <button onClick={() => { void navigator.clipboard.writeText(s.studyInstanceUID); setDropdownOpen(null) }}
                                 className="flex items-center gap-3 w-full px-4 py-3.5 text-sm text-mt hover:bg-s2 hover:text-tx transition-colors">

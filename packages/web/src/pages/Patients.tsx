@@ -4,7 +4,7 @@ import { Search, X, AlertCircle, Send, Stethoscope, EyeOff } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { getPatients, getStudiesByPatient, DicomPatient, DicomStudy } from '../services/dicomweb'
 import { useConnectionStore } from '../store/connectionStore'
-import { formatDicomDate } from '../lib/utils'
+import { formatDicomDate, downloadWithAuth } from '../lib/utils'
 import { SendDicomModal } from '../components/shared/SendDicomModal'
 import { useDoctorStore } from '../store/doctorStore'
 import { useDoctorPatients } from '../hooks/useDoctors'
@@ -64,12 +64,11 @@ function PatientDrawer({ patient, onClose }: { patient: DicomPatient; onClose: (
               </div>
               <p className="text-tx text-sm mt-2">{s.studyDescription || 'Sem descrição'}</p>
               <p className="text-mt text-xs mt-1">{s.numberOfSeries} séries · {s.numberOfInstances} imagens</p>
-              <a href={`/api/proxy/download/study/${s.studyInstanceUID}`}
-                target="_blank" rel="noreferrer"
-                onClick={e => e.stopPropagation()}
+              <button
+                onClick={e => { e.stopPropagation(); void downloadWithAuth(`/api/proxy/download/study/${s.studyInstanceUID}`, `estudo_${s.studyInstanceUID.slice(-8)}.zip`) }}
                 className="inline-flex items-center gap-1 mt-2 text-xs text-ac hover:underline">
                 <Send size={11} /> Download ZIP
-              </a>
+              </button>
             </div>
           ))}
           {!isLoading && !studies?.length && <p className="text-mt text-sm">Nenhum estudo encontrado.</p>}
