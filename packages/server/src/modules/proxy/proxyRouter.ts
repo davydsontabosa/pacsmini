@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { authMiddleware } from '../../middleware/auth'
 import { env } from '../../config/env'
 
@@ -9,8 +9,18 @@ function dcm4cheeAuth() {
   return `Basic ${Buffer.from(`${env.DCM4CHEE_USER}:${env.DCM4CHEE_PASS}`).toString('base64')}`
 }
 
+function handleProxyError(err: unknown, label: string, res: import('express').Response) {
+  const ae = err as AxiosError
+  const status  = ae.response?.status ?? 0
+  const detail  = status
+    ? `dcm4chee respondeu ${status} — verifique se o estudo existe no arquivo`
+    : (ae.message ?? 'Erro de conexão com dcm4chee')
+  console.error(`[Proxy] ${label}:`, detail)
+  if (!res.headersSent) res.status(502).json({ error: detail })
+}
+
 // GET /api/proxy/download/study/:studyUID
-proxyRouter.get('/download/study/:studyUID', authMiddleware, async (req, res, next) => {
+proxyRouter.get('/download/study/:studyUID', authMiddleware, async (req, res) => {
   const { studyUID } = req.params
   const url = `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/aets/${env.DCM4CHEE_AET}/rs/studies/${studyUID}`
   try {
@@ -24,11 +34,11 @@ proxyRouter.get('/download/study/:studyUID', authMiddleware, async (req, res, ne
     res.set('Content-Disposition', `attachment; filename="study_${safeUid}.zip"`)
     if (r.headers['content-length']) res.set('Content-Length', r.headers['content-length'])
     r.data.pipe(res)
-  } catch (err) { next(err) }
+  } catch (err) { handleProxyError(err, `download study ${studyUID}`, res) }
 })
 
 // GET /api/proxy/download/series/:studyUID/:seriesUID
-proxyRouter.get('/download/series/:studyUID/:seriesUID', authMiddleware, async (req, res, next) => {
+proxyRouter.get('/download/series/:studyUID/:seriesUID', authMiddleware, async (req, res) => {
   const { studyUID, seriesUID } = req.params
   const url = `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/aets/${env.DCM4CHEE_AET}/rs/studies/${studyUID}/series/${seriesUID}`
   try {
@@ -42,5 +52,5 @@ proxyRouter.get('/download/series/:studyUID/:seriesUID', authMiddleware, async (
     res.set('Content-Disposition', `attachment; filename="series_${safeUid}.zip"`)
     if (r.headers['content-length']) res.set('Content-Length', r.headers['content-length'])
     r.data.pipe(res)
-  } catch (err) { next(err) }
+  } catch (err) { handleProxyError(err, `download series ${seriesUID}`, res) }
 })
