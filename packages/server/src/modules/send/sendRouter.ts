@@ -64,7 +64,9 @@ sendRouter.post('/study', auth, strictRateLimit, async (req, res) => {
   try {
     await ensureDestinationRegistered(destObj, dcm4cheeBase, creds)
 
-    const url = `${dcm4cheeBase}/dcm4chee-arc/aets/${localAET}/rs/studies/${studyUID}/export/dicom:${dest.ae_title}`
+    // Usa o endpoint de export em bulk com filtro de StudyInstanceUID (0020000D)
+    // para evitar o bug do Hibernate 6.6.x no endpoint /rs/studies/{uid}/export
+    const url = `${dcm4cheeBase}/dcm4chee-arc/aets/${localAET}/rs/export/dicom:${dest.ae_title}/studies?0020000D=${encodeURIComponent(studyUID)}`
     const exportRes = await fetch(url, { method: 'POST', headers: authHeader, signal: AbortSignal.timeout(15000) })
 
     if (exportRes.ok) {

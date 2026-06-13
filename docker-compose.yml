@@ -27,7 +27,7 @@ services:
 
   # ── LDAP (configuração do dcm4chee) ─────────────────────────────────────────
   ldap:
-    image: dcm4che/slapd-dcm4chee:2.6.8-34.1
+    image: dcm4che/slapd-dcm4chee:2.6.8-33.1
     networks: [dicom-net]
     environment:
       STORAGE_DIR: /storage/fs1
@@ -43,7 +43,7 @@ services:
 
   # ── PostgreSQL (banco do dcm4chee) ───────────────────────────────────────────
   db:
-    image: dcm4che/postgres-dcm4chee:17.4-34
+    image: dcm4che/postgres-dcm4chee:16.4-33
     networks: [dicom-net]
     environment:
       POSTGRES_DB:       ${POSTGRES_DB:-pacsdb}
@@ -61,7 +61,7 @@ services:
 
   # ── dcm4chee Archive 5 ────────────────────────────────────────────────────────
   arc:
-    image: dcm4che/dcm4chee-arc-psql:5.34.1
+    image: dcm4che/dcm4chee-arc-psql:5.33.1
     networks: [dicom-net]
     ports:
       - "${DICOM_PORT:-11112}:11112"   # DICOM C-STORE
