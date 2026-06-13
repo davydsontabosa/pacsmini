@@ -59,6 +59,7 @@ export default function Studies() {
   const [dropdownOpen,     setDropdownOpen]     = useState<string | null>(null)
   const [selected,         setSelected]         = useState<Set<string>>(new Set())
   const [batchOpen,        setBatchOpen]        = useState(false)
+  const [downloading,      setDownloading]      = useState<string | null>(null)
   const { apiSecret } = useServerStore()
 
   const { data: studies, isLoading } = useQuery<DicomStudy[]>({
@@ -232,9 +233,17 @@ export default function Studies() {
                                 className="flex items-center gap-3 w-full px-4 py-3.5 text-sm text-tx hover:bg-s2 transition-colors">
                                 <Send size={16} className="text-ac shrink-0" /> Enviar via DICOM
                               </button>
-                              <button onClick={() => { void downloadWithAuth(`/api/proxy/download/study/${s.studyInstanceUID}`, `estudo_${s.studyInstanceUID.slice(-8)}.zip`); setDropdownOpen(null) }}
-                                className="flex items-center gap-3 w-full px-4 py-3.5 text-sm text-tx hover:bg-s2 transition-colors">
-                                <Download size={16} className="text-ac shrink-0" /> Download ZIP
+                              <button
+                                onClick={() => {
+                                  setDropdownOpen(null)
+                                  setDownloading(s.studyInstanceUID)
+                                  downloadWithAuth(`/api/proxy/download/study/${s.studyInstanceUID}`, `estudo_${s.studyInstanceUID.slice(-8)}.zip`)
+                                    .finally(() => setDownloading(null))
+                                }}
+                                disabled={downloading === s.studyInstanceUID}
+                                className="flex items-center gap-3 w-full px-4 py-3.5 text-sm text-tx hover:bg-s2 transition-colors disabled:opacity-50 disabled:cursor-wait">
+                                <Download size={16} className="text-ac shrink-0" />
+                                {downloading === s.studyInstanceUID ? 'Baixando...' : 'Download ZIP'}
                               </button>
                               <div className="border-t border-bd/60">
                               <button onClick={() => { void navigator.clipboard.writeText(s.studyInstanceUID); setDropdownOpen(null) }}

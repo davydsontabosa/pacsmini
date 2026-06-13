@@ -11,17 +11,27 @@ export function formatDicomName(name: string | null | undefined): string {
   return name.replace(/\^/g, ' ').trim() || '—'
 }
 
-export async function downloadWithAuth(path: string, filename: string) {
+export async function downloadWithAuth(path: string, filename: string): Promise<void> {
   const { serverUrl, apiSecret } = useServerStore.getState()
   const url = `${serverUrl}${path}`
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${apiSecret}` } })
-  if (!res.ok) throw new Error(`Erro ${res.status} ao baixar arquivo`)
-  const blob = await res.blob()
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(a.href)
+  try {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${apiSecret}` } })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => '')
+      alert(`Erro ao baixar arquivo: ${res.status}${msg ? ' — ' + msg.slice(0, 120) : ''}`)
+      return
+    }
+    const blob = await res.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
+  } catch (err) {
+    alert(`Falha na conexão ao baixar: ${(err as Error).message}`)
+  }
 }
 
 export function formatDicomDate(d: string | null | undefined): string {

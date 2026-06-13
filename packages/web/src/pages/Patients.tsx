@@ -12,6 +12,7 @@ import { useDoctorPatients } from '../hooks/useDoctors'
 function PatientDrawer({ patient, onClose }: { patient: DicomPatient; onClose: () => void }) {
   const { isConnected } = useConnectionStore()
   const [sendOpen, setSendOpen] = useState(false)
+  const [downloading, setDownloading] = useState<string | null>(null)
   const { data: studies, isLoading } = useQuery<DicomStudy[]>({
     queryKey: ['patient-studies', patient.patientID],
     queryFn:  () => getStudiesByPatient(patient.patientID),
@@ -65,9 +66,15 @@ function PatientDrawer({ patient, onClose }: { patient: DicomPatient; onClose: (
               <p className="text-tx text-sm mt-2">{s.studyDescription || 'Sem descrição'}</p>
               <p className="text-mt text-xs mt-1">{s.numberOfSeries} séries · {s.numberOfInstances} imagens</p>
               <button
-                onClick={e => { e.stopPropagation(); void downloadWithAuth(`/api/proxy/download/study/${s.studyInstanceUID}`, `estudo_${s.studyInstanceUID.slice(-8)}.zip`) }}
-                className="inline-flex items-center gap-1 mt-2 text-xs text-ac hover:underline">
-                <Send size={11} /> Download ZIP
+                onClick={e => {
+                  e.stopPropagation()
+                  setDownloading(s.studyInstanceUID)
+                  downloadWithAuth(`/api/proxy/download/study/${s.studyInstanceUID}`, `estudo_${s.studyInstanceUID.slice(-8)}.zip`)
+                    .finally(() => setDownloading(null))
+                }}
+                disabled={downloading === s.studyInstanceUID}
+                className="inline-flex items-center gap-1 mt-2 text-xs text-ac hover:underline disabled:opacity-50 disabled:cursor-wait">
+                <Send size={11} /> {downloading === s.studyInstanceUID ? 'Baixando...' : 'Download ZIP'}
               </button>
             </div>
           ))}
