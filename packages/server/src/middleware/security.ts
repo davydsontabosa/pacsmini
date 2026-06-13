@@ -2,7 +2,7 @@
  * Security middleware: helmet headers + rate limiting
  */
 import helmet from 'helmet'
-import rateLimit from 'express-rate-limit'
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit'
 import { env } from '../config/env'
 
 /** HTTP security headers via helmet */
@@ -37,5 +37,5 @@ export const portalRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders:   false,
   message: { error: 'Muitas tentativas. Tente novamente em 5 minutos.' },
-  keyGenerator: (req) => req.params.tokenId ?? req.ip ?? 'unknown',
+  keyGenerator: (req) => req.params.tokenId ?? ipKeyGenerator(req),
 })
