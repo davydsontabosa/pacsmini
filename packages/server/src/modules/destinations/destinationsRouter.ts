@@ -229,15 +229,19 @@ destinationsRouter.post('/:id/echo', auth, strictRateLimit, async (req, res) => 
   const dest = mapRow(row)
   const dcm4cheeBase = env.DCM4CHEE_BASE_URL
   const localAET     = env.DCM4CHEE_AET
-  const now          = new Date().toISOString()
+  const creds        = { user: env.DCM4CHEE_USER, pass: env.DCM4CHEE_PASS }
+  const authHeader   = {
+    Authorization: `Basic ${Buffer.from(`${creds.user}:${creds.pass}`).toString('base64')}`,
+  }
+  const now = new Date().toISOString()
 
   try {
-    await ensureDestinationRegistered(dest, dcm4cheeBase, { user: env.DCM4CHEE_USER, pass: env.DCM4CHEE_PASS })
+    await ensureDestinationRegistered(dest, dcm4cheeBase, creds)
 
     const start = Date.now()
     const echoRes = await fetch(
       `${dcm4cheeBase}/dcm4chee-arc/aets/${localAET}/dimse/${dest.aeTitle}`,
-      { method: 'POST', signal: AbortSignal.timeout(10000) }
+      { method: 'POST', headers: authHeader, signal: AbortSignal.timeout(10000) }
     )
     const responseTime = Date.now() - start
 
@@ -246,14 +250,18 @@ destinationsRouter.post('/:id/echo', auth, strictRateLimit, async (req, res) => 
         .run(now, now, id)
       return res.json({ success: true, message: `C-ECHO OK (${responseTime}ms)`, responseTime })
     } else {
+      const body = await echoRes.text().catch(() => '')
       db.prepare('UPDATE dicom_destinations SET last_echo_ok = 0, updated_at = ? WHERE id = ?').run(now, id)
-      return res.json({ success: false, message: `Servidor respondeu com erro: ${echoRes.status}`, responseTime })
+      const detail = echoRes.status === 404
+        ? `AE Title "${dest.aeTitle}" não encontrado no dcm4chee — verifique se o destino está registrado`
+        : `dcm4chee respondeu com erro ${echoRes.status}${body ? ': ' + body.slice(0, 120) : ''}`
+      return res.json({ success: false, message: detail, responseTime })
     }
   } catch (err: unknown) {
     db.prepare('UPDATE dicom_destinations SET last_echo_ok = 0, updated_at = ? WHERE id = ?').run(now, id)
     const e = err as Error & { name?: string }
     if (e.name === 'TimeoutError') {
-      return res.json({ success: false, message: 'Timeout: servidor não respondeu em 10 segundos', responseTime: 10000 })
+      return res.json({ success: false, message: 'Timeout: o servidor de destino não respondeu em 10s', responseTime: 10000 })
     }
     return res.json({ success: false, message: e.message || 'Erro de conexão', responseTime: 0 })
   }
