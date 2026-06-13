@@ -4,6 +4,12 @@ import { env } from '../../config/env'
 import { portalRateLimit } from '../../middleware/security'
 import { getShareById, isShareValid, verifySharePassword, incrementAccess } from '../shares/shareStore'
 
+function dcm4cheeAuth() {
+  return {
+    Authorization: `Basic ${Buffer.from(`${env.DCM4CHEE_USER}:${env.DCM4CHEE_PASS}`).toString('base64')}`,
+  }
+}
+
 export const portalRouter = Router()
 
 portalRouter.use(portalRateLimit)
@@ -49,7 +55,7 @@ portalRouter.get('/:tokenId/series', resolveToken, async (req, res, next) => {
   const token = (req as ReqWithToken).shareToken
   try {
     const url = `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/aets/${env.DCM4CHEE_AET}/rs/studies/${token.study_uid}/series`
-    const r = await axios.get(url, { headers: { Accept: 'application/dicom+json' }, timeout: 10000 })
+    const r = await axios.get(url, { headers: { Accept: 'application/dicom+json', ...dcm4cheeAuth() }, timeout: 10000 })
     res.json(r.data)
   } catch (err) { next(err) }
 })
@@ -58,7 +64,7 @@ portalRouter.get('/:tokenId/instances/:seriesUid', resolveToken, async (req, res
   const token = (req as ReqWithToken).shareToken
   try {
     const url = `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/aets/${env.DCM4CHEE_AET}/rs/studies/${token.study_uid}/series/${req.params.seriesUid}/instances`
-    const r = await axios.get(url, { headers: { Accept: 'application/dicom+json' }, timeout: 10000 })
+    const r = await axios.get(url, { headers: { Accept: 'application/dicom+json', ...dcm4cheeAuth() }, timeout: 10000 })
     res.json(r.data)
   } catch (err) { next(err) }
 })
@@ -75,6 +81,7 @@ portalRouter.get('/:tokenId/thumbnail/:seriesUid/:instanceUid', resolveToken, as
         contentType: 'image/jpeg',
         rows: Number(req.query.rows) || 256,
       },
+      headers: dcm4cheeAuth(),
       responseType: 'arraybuffer',
       timeout: 10000,
     })
@@ -89,7 +96,7 @@ portalRouter.get('/:tokenId/download/study', resolveToken, async (req, res, next
   if (!token.allow_download) return res.status(403).json({ error: 'Download não permitido' })
   try {
     const url = `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/aets/${env.DCM4CHEE_AET}/rs/studies/${token.study_uid}`
-    const r = await axios.get(url, { headers: { Accept: 'application/zip' }, responseType: 'stream', timeout: 120_000 })
+    const r = await axios.get(url, { headers: { Accept: 'application/zip', ...dcm4cheeAuth() }, responseType: 'stream', timeout: 120_000 })
     const safeDesc = (token.study_desc ?? 'exame').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)
     res.set('Content-Type', 'application/zip')
     res.set('Content-Disposition', `attachment; filename="${safeDesc}.zip"`)
@@ -104,7 +111,7 @@ portalRouter.get('/:tokenId/download/series/:seriesUid', resolveToken, async (re
   if (!token.allow_download) return res.status(403).json({ error: 'Download não permitido' })
   try {
     const url = `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/aets/${env.DCM4CHEE_AET}/rs/studies/${token.study_uid}/series/${req.params.seriesUid}`
-    const r = await axios.get(url, { headers: { Accept: 'application/zip' }, responseType: 'stream', timeout: 60_000 })
+    const r = await axios.get(url, { headers: { Accept: 'application/zip', ...dcm4cheeAuth() }, responseType: 'stream', timeout: 60_000 })
     res.set('Content-Type', 'application/zip')
     res.set('Content-Disposition', `attachment; filename="serie_${req.params.seriesUid.slice(-8)}.zip"`)
     if (r.headers['content-length']) res.set('Content-Length', r.headers['content-length'])

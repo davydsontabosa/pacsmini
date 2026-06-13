@@ -3,13 +3,18 @@ import type { Attachment } from 'nodemailer/lib/mailer'
 import { env } from '../../config/env'
 import type { DiskStatus } from '../disk/diskService'
 
-function createTransport() {
-  return nodemailer.createTransport({
-    host:   env.SMTP_HOST,
-    port:   parseInt(env.SMTP_PORT, 10),
-    secure: env.SMTP_SECURE === 'true',
-    auth:   { user: env.SMTP_USER, pass: env.SMTP_PASS },
-  })
+let _transport: ReturnType<typeof nodemailer.createTransport> | null = null
+
+function getTransport() {
+  if (!_transport) {
+    _transport = nodemailer.createTransport({
+      host:   env.SMTP_HOST,
+      port:   parseInt(env.SMTP_PORT, 10),
+      secure: env.SMTP_SECURE === 'true',
+      auth:   { user: env.SMTP_USER, pass: env.SMTP_PASS },
+    })
+  }
+  return _transport
 }
 
 export async function sendDiskAlert(disk: DiskStatus, recipients: string[]) {
@@ -50,7 +55,7 @@ export async function sendDiskAlert(disk: DiskStatus, recipients: string[]) {
       </p>
     </div>
   `
-  await createTransport().sendMail({ from: env.EMAIL_FROM, to: recipients.join(', '), subject, html })
+  await getTransport().sendMail({ from: env.EMAIL_FROM, to: recipients.join(', '), subject, html })
   console.log(`[Email] Alerta de disco enviado para: ${recipients.join(', ')}`)
 }
 
@@ -96,7 +101,7 @@ export async function sendDicomErrorAlert(errors: DicomErrorInfo[], recipients: 
       <p style="color:#64748b;font-size:12px;margin-top:24px;">PACS Mini · ${new Date().toLocaleString('pt-BR')}</p>
     </div>
   `
-  await createTransport().sendMail({ from: env.EMAIL_FROM, to: recipients.join(', '), subject, html })
+  await getTransport().sendMail({ from: env.EMAIL_FROM, to: recipients.join(', '), subject, html })
 }
 
 export interface ShareEmailData {
@@ -194,7 +199,7 @@ export async function sendShareEmail(data: ShareEmailData) {
     </div>
   `
 
-  await createTransport().sendMail({
+  await getTransport().sendMail({
     from:        env.EMAIL_FROM,
     to:          data.recipientEmail,
     subject,

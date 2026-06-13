@@ -5,11 +5,15 @@ import { recordEvent, getPendingErrors, markNotified } from './eventService'
 import { sendDicomErrorAlert } from '../notifications/emailService'
 import { saveAlert } from '../notifications/alertStore'
 
+function dcm4cheeAuth() {
+  return `Basic ${Buffer.from(`${env.DCM4CHEE_USER}:${env.DCM4CHEE_PASS}`).toString('base64')}`
+}
+
 async function fetchFailedTasks(endpoint: string, eventType: string) {
   try {
     const res = await axios.get(
       `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/monitor/${endpoint}`,
-      { params: { status: 'FAILED', limit: 20 }, headers: { Accept: 'application/json' }, timeout: 8000 }
+      { params: { status: 'FAILED', limit: 20 }, headers: { Accept: 'application/json', Authorization: dcm4cheeAuth() }, timeout: 8000 }
     )
     const tasks: Array<Record<string, unknown>> = res.data ?? []
     tasks.forEach((task) => {

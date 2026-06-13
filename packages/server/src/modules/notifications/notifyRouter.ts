@@ -26,7 +26,10 @@ notifyRouter.post('/test-disk', authMiddleware, async (_req, res, next) => {
 notifyRouter.post('/smtp-test', authMiddleware, async (req, res, next) => {
   try {
     const disk = await getDiskStatus()
-    const testEmail = String(req.body?.testEmail || env.EMAIL_ALERT_TO.split(',')[0])
+    const raw = req.body?.testEmail
+    const testEmail = typeof raw === 'string' && raw.includes('@')
+      ? raw
+      : env.EMAIL_ALERT_TO.split(',')[0].trim()
     await sendDiskAlert({ ...disk, status: 'warning' }, [testEmail])
     res.json({ ok: true, message: `Email de teste enviado para ${testEmail}` })
   } catch (err) { next(err) }

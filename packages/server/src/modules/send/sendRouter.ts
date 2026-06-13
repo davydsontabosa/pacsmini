@@ -129,7 +129,8 @@ sendRouter.get('/status/:studyUID', auth, async (req, res) => {
   const dcm4cheeBase = env.DCM4CHEE_BASE_URL
   try {
     const url = `${dcm4cheeBase}/dcm4chee-arc/monitor/export?studyUID=${encodeURIComponent(studyUID)}&limit=5`
-    const r   = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    const authHeader = { Authorization: `Basic ${Buffer.from(`${env.DCM4CHEE_USER}:${env.DCM4CHEE_PASS}`).toString('base64')}` }
+    const r   = await fetch(url, { headers: authHeader, signal: AbortSignal.timeout(5000) })
     if (!r.ok) return res.json({ tasks: [] })
     const tasks = await r.json()
     return res.json({ tasks })

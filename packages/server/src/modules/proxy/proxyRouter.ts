@@ -5,13 +5,17 @@ import { env } from '../../config/env'
 
 export const proxyRouter = Router()
 
+function dcm4cheeAuth() {
+  return `Basic ${Buffer.from(`${env.DCM4CHEE_USER}:${env.DCM4CHEE_PASS}`).toString('base64')}`
+}
+
 // GET /api/proxy/download/study/:studyUID
 proxyRouter.get('/download/study/:studyUID', authMiddleware, async (req, res, next) => {
   const { studyUID } = req.params
   const url = `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/aets/${env.DCM4CHEE_AET}/rs/studies/${studyUID}`
   try {
     const r = await axios.get(url, {
-      headers: { Accept: 'application/zip' },
+      headers: { Accept: 'application/zip', Authorization: dcm4cheeAuth() },
       responseType: 'stream',
       timeout: 120_000,
     })
@@ -29,7 +33,7 @@ proxyRouter.get('/download/series/:studyUID/:seriesUID', authMiddleware, async (
   const url = `${env.DCM4CHEE_BASE_URL}/dcm4chee-arc/aets/${env.DCM4CHEE_AET}/rs/studies/${studyUID}/series/${seriesUID}`
   try {
     const r = await axios.get(url, {
-      headers: { Accept: 'application/zip' },
+      headers: { Accept: 'application/zip', Authorization: dcm4cheeAuth() },
       responseType: 'stream',
       timeout: 60_000,
     })

@@ -50,7 +50,7 @@ export async function ensureDestinationRegistered(
       body:    JSON.stringify(devicePayload),
       signal:  AbortSignal.timeout(5000),
     })
-  } catch {
-    // Non-fatal — attempt the operation anyway; dcm4chee may already know the AET
+  } catch (err) {
+    console.warn(`[dcm4cheeDevices] Falha ao registrar ${dest.aeTitle}:`, (err as Error).message)
   }
 }
