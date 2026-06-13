@@ -102,6 +102,8 @@ services:
       FRONTEND_URL:           ${FRONTEND_URL:-http://localhost}
       DCM4CHEE_BASE_URL:      http://arc:8080
       DCM4CHEE_AET:           ${DCM4CHEE_AET:-DCM4CHEE}
+      DCM4CHEE_USER:          ${DCM4CHEE_USER:-admin}
+      DCM4CHEE_PASS:          ${DCM4CHEE_PASS:-admin}
       SMTP_HOST:              ${SMTP_HOST:-smtp.gmail.com}
       SMTP_PORT:              ${SMTP_PORT:-587}
       SMTP_SECURE:            ${SMTP_SECURE:-false}

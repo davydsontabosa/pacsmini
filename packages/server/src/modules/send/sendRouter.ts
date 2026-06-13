@@ -53,15 +53,19 @@ sendRouter.post('/study', auth, strictRateLimit, async (req, res) => {
   const dest = getActiveDest(destinationId)
   if (!dest) return res.status(404).json({ success: false, message: 'Destino não encontrado ou inativo' })
 
-  const destObj = { aeTitle: dest.ae_title, host: dest.host, port: dest.port, name: dest.name }
+  const destObj    = { aeTitle: dest.ae_title, host: dest.host, port: dest.port, name: dest.name }
   const dcm4cheeBase = env.DCM4CHEE_BASE_URL
   const localAET     = env.DCM4CHEE_AET
+  const creds        = { user: env.DCM4CHEE_USER, pass: env.DCM4CHEE_PASS }
+  const authHeader   = {
+    Authorization: `Basic ${Buffer.from(`${creds.user}:${creds.pass}`).toString('base64')}`,
+  }
 
   try {
-    await ensureDestinationRegistered(destObj, dcm4cheeBase)
+    await ensureDestinationRegistered(destObj, dcm4cheeBase, creds)
 
     const url = `${dcm4cheeBase}/dcm4chee-arc/aets/${localAET}/rs/studies/${studyUID}/export/dicom:${dest.ae_title}`
-    const exportRes = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(15000) })
+    const exportRes = await fetch(url, { method: 'POST', headers: authHeader, signal: AbortSignal.timeout(15000) })
 
     if (exportRes.ok) {
       logSend({ destinationId, studyUid: studyUID, sendType: 'study', status: 'sent' })
@@ -88,15 +92,19 @@ sendRouter.post('/patient', auth, strictRateLimit, async (req, res) => {
   const dest = getActiveDest(destinationId)
   if (!dest) return res.status(404).json({ success: false, message: 'Destino não encontrado ou inativo' })
 
-  const destObj = { aeTitle: dest.ae_title, host: dest.host, port: dest.port, name: dest.name }
+  const destObj      = { aeTitle: dest.ae_title, host: dest.host, port: dest.port, name: dest.name }
   const dcm4cheeBase = env.DCM4CHEE_BASE_URL
   const localAET     = env.DCM4CHEE_AET
+  const creds        = { user: env.DCM4CHEE_USER, pass: env.DCM4CHEE_PASS }
+  const authHeader   = {
+    Authorization: `Basic ${Buffer.from(`${creds.user}:${creds.pass}`).toString('base64')}`,
+  }
 
   try {
-    await ensureDestinationRegistered(destObj, dcm4cheeBase)
+    await ensureDestinationRegistered(destObj, dcm4cheeBase, creds)
 
     const url = `${dcm4cheeBase}/dcm4chee-arc/aets/${localAET}/rs/export/dicom:${dest.ae_title}/studies?00100020=${encodeURIComponent(patientID)}`
-    const exportRes = await fetch(url, { method: 'POST', signal: AbortSignal.timeout(15000) })
+    const exportRes = await fetch(url, { method: 'POST', headers: authHeader, signal: AbortSignal.timeout(15000) })
 
     if (exportRes.ok) {
       logSend({ destinationId, studyUid: '*', patientId: patientID, sendType: 'patient', status: 'sent' })
